@@ -1,7 +1,15 @@
 //Available in nodejs
 
 var NodeWebcam = require("node-webcam");
+const sharp = require('sharp');
+var PNG = require('png-js');
+const Launchpad = require('launchpad-mk2')
 
+let launchpad = new Launchpad({
+  in: 1,
+  out: 1
+})
+launchpad.darkAll()
 
 //Default options
 
@@ -56,7 +64,7 @@ var opts = {
 
     //Logging
 
-    verbose: false
+    verbose: true
 
 };
 
@@ -73,9 +81,9 @@ var Webcam = NodeWebcam.create( opts );
 
 //Also available for quick use
 
-NodeWebcam.capture( "test_picture", opts, function( err, data ) {
-    console.log('')
-});
+// NodeWebcam.capture( "test_picture", opts, function( err, data ) {
+//     console.log('')
+// });
 
 
 //Get list of cameras
@@ -91,11 +99,59 @@ Webcam.list( function( list ) {
 //Return type with base 64 image
 
 let opts2 = Object.assign({}, opts, {
-    callbackReturn: "base64"
+    callbackReturn: "buffer"
 })
 
-NodeWebcam.capture( "test_picture2", opts2, function( err, data ) {
 
-    var image = "<img src='" + data + "'>";
-    console.log('Image', image)
-});
+
+const captureImageAndTriggerRefresh = ()=>{
+    NodeWebcam.capture( "test_picture2", opts2, function( err, imageBuffer ) {
+        console.log('Raw image buffer')
+        sharp(imageBuffer).resize(8, 8).toBuffer((err, data, info) => {
+            console.log('Resized image buffer')
+
+            const png = new PNG(data)
+
+            png.decode(function(pixels) {
+
+                console.log('Image decoded!')
+                sendImageToMidi(pixels)
+            });
+
+        });
+
+    });
+}
+
+
+
+const sendImageToMidi = (decodedPngBuffer) => {
+
+
+    let pixel = 0  // each pixel corresponds to 4 values in the buffer
+    let column = 1
+    let row = 8
+
+    do{
+        var button = launchpad.getButton(row, column)
+        button.setRgbColor(
+            Math.floor(decodedPngBuffer[pixel*4+0]/4),
+            Math.floor(decodedPngBuffer[pixel*4+1]/4),
+            Math.floor(decodedPngBuffer[pixel*4+2]/4)) // +3 is opcity which is not used/supported
+
+        pixel++
+        column++
+
+        if(column==9){
+            row--
+            column=1
+        }
+
+    } while(row>0)
+
+
+}
+
+
+
+setInterval(captureImageAndTriggerRefresh, 100)

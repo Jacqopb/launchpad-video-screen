@@ -9,7 +9,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "launchpad-mk2": "^2.0.3",
     "node-webcam": "^0.6.4",
+    "png-js": "^1.0.0",
     "sharp": "^0.25.4"
   }
 }
